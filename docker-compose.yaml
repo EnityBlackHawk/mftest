@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: postgres
+      POSTGRES_USER: admin
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  mongodb:
+    image: mongodb/mongodb-community-server:latest
+    ports:
+      - "27017:27017"
+  mf_server:
+    build: src/main/java/org/utfpr/mf/mftest/service
+    image: entityblackhawk/mf-server:latest
+    environment:
+      - GPT_KEY=${GPT_KEY}
+      - GOOGLEAI_API_KEY=${GOOGLEAI_API_KEY}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
