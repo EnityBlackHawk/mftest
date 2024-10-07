@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.utfpr.mf.MockLayer;
 import org.utfpr.mf.enums.DefaultInjectParams;
+import org.utfpr.mf.mftest.service.TestResultService;
 import org.utfpr.mf.migration.IMfBinder;
 import org.utfpr.mf.migration.IMfStepObserver;
 import org.utfpr.mf.migration.MfMigrationStepFactory;
@@ -23,13 +24,13 @@ public class MftestApplication {
     public static final boolean INSERT_TEST_DATA = true;
 
     public static void main(String[] args) {
-        SpringApplication.run(MftestApplication.class, args);
-
+        var context = SpringApplication.run(MftestApplication.class, args);
+        var testResultService = context.getBean(TestResultService.class);
         List<String> selects = WorkloadLoader.getSelects("src/main/resources/workload.sql");
 
         assert selects.size() == 5 : "Expected 5 selects, got " + selects.size();
 
-        String testName = "Test A";
+        String testName = "A";
 
         Credentials credentials = new Credentials(
                 "jdbc:postgresql://localhost:5432/airport3",
@@ -54,41 +55,9 @@ public class MftestApplication {
         IMfBinder binder = new MfMigrator.Binder();
         binder.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
 
-        MockLayer.isActivated = true;
+        TestCase tc = new TestCase(testName, credentials, spec, binder, testResultService);
 
-        IMfStepObserver<MetadataInfo, Model> observer = new IMfStepObserver<>() {
-            @Override
-            public boolean OnStepStart(String s, MetadataInfo o) {
-                System.out.println("Disabling MockLayer");
-                MockLayer.isActivated = false;
-                return true;
-            }
-
-            @Override
-            public boolean OnStepEnd(String s, Model o) {
-                System.out.println("Enable MockLayer");
-                MockLayer.isActivated = true;
-                return false;
-            }
-
-            @Override
-            public boolean OnStepCrash(String s, Throwable throwable) {
-                return false;
-            }
-
-            @Override
-            public boolean OnStepError(String s, String s1) {
-                return false;
-            }
-        };
-
-        MfMigrationStepFactory factory = new MfMigrationStepFactory();
-        factory.createAcquireMetadataStep();
-        factory.createGenerateModelStep(spec, observer);
-
-        MfMigrator migrator = new MfMigrator(binder, factory);
-        Model model = (Model) migrator.execute(credentials);
-
+        tc.start();
 
     }
 
