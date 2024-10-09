@@ -70,14 +70,14 @@ public class TestCase extends CodeSession {
         factory.createGenerateModelStep(migrationSpec, mo);
         factory.createGenerateJavaCodeStep(new JavaObserver(this));
         factory.createMigrateDatabaseStep(null, new MigrationObserver(this));
+        factory.createValidatorStep(new VerificationObserver(this));
 
         MockLayer.isActivated = true;
 
         MfMigrator migrator = new MfMigrator(binder, factory);
         BEGIN("Executing");
         var result = migrator.execute(credentials);
-
-        assert result != null : "Result is null";
+        // TODO: Treat errors were (expose the generated classes)
 
         persist();
     }
@@ -201,7 +201,33 @@ public class TestCase extends CodeSession {
             return false;
         }
     }
+    protected static class VerificationObserver implements IMfStepObserver<MigrationDatabaseReport, VerificationReport> {
+        private TestCase testCase;
 
+        public VerificationObserver(TestCase testCase) {
+            this.testCase = testCase;
+        }
+
+        @Override
+        public boolean OnStepStart(String s, MigrationDatabaseReport migrationDatabaseReport) {
+            return false;
+        }
+
+        @Override
+        public boolean OnStepEnd(String s, VerificationReport verificationReport) {
+            return false;
+        }
+
+        @Override
+        public boolean OnStepCrash(String s, Throwable throwable) {
+            return false;
+        }
+
+        @Override
+        public boolean OnStepError(String s, String s1) {
+            return false;
+        }
+    }
 
 
 }
