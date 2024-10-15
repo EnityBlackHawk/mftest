@@ -40,8 +40,8 @@ public class MftestApplication {
         binder.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
 
         ArrayList<TestCase> tests = new ArrayList<>();
-        tests.add(generateTest1(credentials, selects, binder, testResultService));
-        //tests.add(generateTest2(credentials, selects, binder, testResultService));
+        //tests.add(generateTest1(credentials, selects, binder, testResultService));
+        tests.add(generateTest2(credentials, selects, binder, testResultService));
         for (var test : tests) {
             test.start();
         }

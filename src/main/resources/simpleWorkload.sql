@@ -1,4 +1,8 @@
-SELECT * FROM flight WHERE number = 'FL0018';
+SELECT f.number, f.departure_time_scheduled, f.gate, a_to.city, a_to.id, a_line.name FROM flight f
+    JOIN public.aircraft a on f.aircraft = a.id
+    JOIN public.airport a_to on a_to.id = f.airport_to
+    JOIN public.airline a_line on a.airline = a_line.id
+    WHERE number = 'FL0018';
 ---
 select p.id, p.first_name, p.last_name, b.flight, b.seat from passenger p join booking b on b.passenger = p.id;
 ---
