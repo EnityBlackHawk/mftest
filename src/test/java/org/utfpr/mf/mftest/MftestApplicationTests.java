@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest
 class MftestApplicationTests {
 
-    public static final String MONGO_DATABASE = "mftest-A";
+    public static final String MONGO_DATABASE = "mftest-References";
 
     private MongoConnection mongoConnection;
     private MongoDatabase db;
@@ -99,6 +99,78 @@ class MftestApplicationTests {
             System.out.println( field.get(a) );
         }
     }
+
+    @Test
+    void aggregate0() {
+        var collection = db.getCollection("flight");
+
+        var initTime = System.nanoTime();
+
+        var result = collection.aggregate(
+                Arrays.asList(new Document("$match",
+                                new Document("_id", "FL0018")),
+                        new Document("$project",
+                                new Document("departureTimeScheduled", 1L)
+                                        .append("gate", 1L)
+                                        .append("city", "$airportTo.city")
+                                        .append("aiportTo", "$airportTo._id")
+                                        .append("airline", "$aircraft.airline.name")))
+        );
+
+        var elapsedTime = System.nanoTime() - initTime;
+        System.out.println("Elapsed time: " + elapsedTime / Math.pow(10, 6) + "ms");
+        int count = 0;
+        for(var x : result) {
+            System.out.println(x.toJson());
+            count++;
+        }
+        assertNotEquals(0, count);
+
+    }
+
+    @Test
+    void aggregate0_ref() {
+        var collection = db.getCollection("flight");
+        var initTime = System.nanoTime();
+        var result = collection.aggregate(
+                Arrays.asList(new Document("$lookup",
+                                new Document("from", "airport")
+                                        .append("localField", "airportFrom.$id")
+                                        .append("foreignField", "_id")
+                                        .append("as", "airportTo_result")),
+                        new Document("$lookup",
+                                new Document("from", "aircraft")
+                                        .append("localField", "aircraft.$id")
+                                        .append("foreignField", "_id")
+                                        .append("as", "aircraft_result")),
+                        new Document("$unwind",
+                                new Document("path", "$airportTo_result")),
+                        new Document("$unwind",
+                                new Document("path", "$aircraft_result")),
+                        new Document("$lookup",
+                                new Document("from", "airline")
+                                        .append("localField", "aircraft_result.airline.$id")
+                                        .append("foreignField", "_id")
+                                        .append("as", "airline")),
+                        new Document("$unwind",
+                                new Document("path", "$airline")),
+                        new Document("$project",
+                                new Document("departureTimeScheduled", 1L)
+                                        .append("gate", 1L)
+                                        .append("city", "$airportTo_result.city")
+                                        .append("aiportTo", "$airportTo_result._id")
+                                        .append("airline", "$airline.name")))
+        );
+        var elapsedTime = System.nanoTime() - initTime;
+        System.out.println("Elapsed time: " + elapsedTime / Math.pow(10, 6) + "ms");
+        int count = 0;
+        for(var x : result) {
+            System.out.println(x.toJson());
+            count++;
+        }
+        assertNotEquals(0, count);
+    }
+
 
     @Test
     void aggregate1() {

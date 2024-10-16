@@ -11,16 +11,8 @@ services:
     ports:
       - "5432:5432"
   mongodb:
-    image: mongodb/mongodb-community-server:latest
+    image: mongo:latest
+    volumes:
+      - ./data_mongo:/data/db
     ports:
       - "27017:27017"
-  mf_server:
-    build: src/main/java/org/utfpr/mf/mftest/service
-    image: entityblackhawk/mf-server:latest
-    environment:
-      - GPT_KEY=${GPT_KEY}
-      - GOOGLEAI_API_KEY=${GOOGLEAI_API_KEY}
-    ports:
-      - "8081:8081"
-    depends_on:
-      - postgres
