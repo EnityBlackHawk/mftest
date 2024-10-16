@@ -9,3 +9,9 @@
 | Name      | Description   |
 |-----------|---------------|
 | LLM_KEY   | GPT's api key |
+
+
+## Docker
+```bash
+sudo docker-compose up -d
+```
