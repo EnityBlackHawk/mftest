@@ -16,8 +16,13 @@ import org.utfpr.mf.model.Credentials;
 import org.utfpr.mf.mongoConnection.MongoConnection;
 import org.utfpr.mf.mongoConnection.MongoConnectionCredentials;
 import org.utfpr.mf.prompt.Framework;
+import org.utfpr.mf.stream.FilePrintStream;
+import org.utfpr.mf.stream.StringPrintStream;
 import org.utfpr.mf.tools.CodeSession;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.List;
 
 
@@ -36,6 +41,7 @@ public class TestCase extends CodeSession {
     private GeneratedJavaCode generatedJavaCode;
     private TestResultService testResultService;
     private boolean success = false;
+    private StringPrintStream printStream;
 
     protected TestCase(String name,
                        Credentials credentials, MigrationSpec migrationSpec,
@@ -46,9 +52,10 @@ public class TestCase extends CodeSession {
         this.migrationSpec = migrationSpec;
         this.binder = binder;
         this.testResultService = testResultService;
+        this.printStream = new StringPrintStream();
     }
 
-    public void start() {
+    public void start() throws FileNotFoundException {
 
         BEGIN("Initializing test " + name);
         BEGIN("Configuring");
@@ -65,7 +72,9 @@ public class TestCase extends CodeSession {
 
         BEGIN_SUB("Creating migration steps");
         ModelObserver mo = new ModelObserver(this);
-        MfMigrationStepFactory factory = new MfMigrationStepFactory();
+
+
+        MfMigrationStepFactory factory = new MfMigrationStepFactory(printStream);
         factory.createAcquireMetadataStep();
         factory.createGenerateModelStep(migrationSpec, mo);
         factory.createGenerateJavaCodeStep(new JavaObserver(this));
@@ -74,7 +83,7 @@ public class TestCase extends CodeSession {
 
         MockLayer.isActivated = true;
 
-        MfMigrator migrator = new MfMigrator(binder, factory);
+        MfMigrator migrator = new MfMigrator(binder, factory, printStream);
         BEGIN("Executing");
         var result = migrator.execute(credentials);
         // TODO: Treat errors were (expose the generated classes)
@@ -92,7 +101,8 @@ public class TestCase extends CodeSession {
                 generatedModel.getModel(),
                 generatedJavaCode.getFullSourceCode(),
                 success,
-                migrationSpec.getWorkload().stream().map(WorkloadData::new).toList()
+                migrationSpec.getWorkload().stream().map(WorkloadData::new).toList(),
+                printStream.get()
         );
         testResultService.save(tr);
     }
@@ -111,7 +121,7 @@ public class TestCase extends CodeSession {
 
             if(!MOCK_LAYER) {
                 System.out.println("Disabling MockLayer");
-                MockLayer.isActivated = false;
+                //MockLayer.isActivated = false;
             }
             return true;
         }
@@ -146,7 +156,7 @@ public class TestCase extends CodeSession {
             public boolean OnStepStart(String s, Model o) {
                 if(!MOCK_LAYER) {
                     System.out.println("Disabling MockLayer");
-                    MockLayer.isActivated = false;
+                    //MockLayer.isActivated = false;
                 }
                 return true;
             }

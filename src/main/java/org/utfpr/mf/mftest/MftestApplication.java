@@ -16,6 +16,7 @@ import org.utfpr.mf.model.Credentials;
 import org.utfpr.mf.prompt.Framework;
 import org.utfpr.mf.migration.params.MigrationSpec.Workload;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class MftestApplication {
 
     public static final boolean INSERT_TEST_DATA = true;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FileNotFoundException {
         var context = SpringApplication.run(MftestApplication.class, args);
         var testResultService = context.getBean(TestResultService.class);
         List<String> selects = WorkloadLoader.getSelects("src/main/resources/simpleWorkload.sql");
@@ -53,7 +54,7 @@ public class MftestApplication {
                 .framework(Framework.SPRING_DATA)
                 .allow_ref(true)
                 .prioritize_performance(true)
-                .name("A")
+                .name("B")
                 .workload(List.of(
                         new Workload(30, selects.get(0)),
                         new Workload(15, selects.get(1)),
@@ -62,7 +63,7 @@ public class MftestApplication {
                         new Workload(20, selects.get(4))
                 ))
                 .build();
-        return new TestCase("A", cred, spec, binder, service);
+        return new TestCase("B", cred, spec, binder, service);
     }
 
     public static TestCase generateTest2(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {

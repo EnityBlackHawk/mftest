@@ -33,8 +33,10 @@ public class TestResult {
     @OneToMany(cascade = CascadeType.ALL)
     private List<WorkloadData> workload;
     private Date date;
+    @Column(name = "log", columnDefinition = "text")
+    private String log;
 
-    public TestResult(String name, String prompt, String response, String llmModel, String generatedModel, String javaCode, boolean runSuccess, List<WorkloadData> workload) {
+    public TestResult(String name, String prompt, String response, String llmModel, String generatedModel, String javaCode, boolean runSuccess, List<WorkloadData> workload, String log) {
         this.name = name;
         this.prompt = prompt;
         this.response = response;
@@ -44,6 +46,7 @@ public class TestResult {
         this.runSuccess = runSuccess;
         this.workload = workload;
         this.date = new Date();
+        this.log = log;
     }
 
 }
