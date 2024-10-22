@@ -40,7 +40,7 @@ public class BenchmarkTest {
     }
 
     public static class MongoEmbedded {
-        public static MongoQuery query1 = new MongoQuery("1",  Arrays.asList(new Document("$match",
+        public static MongoQuery query1 = new MongoQuery("Embedded 1",  Arrays.asList(new Document("$match",
                         new Document("_id", "FL0018")),
                 new Document("$project",
                         new Document("departureTimeScheduled", 1L)
@@ -50,7 +50,7 @@ public class BenchmarkTest {
                                 .append("airline", "$aircraft.airline.name"))),
                 "flight"
         );
-        public static MongoQuery query2 = new MongoQuery("2", Arrays.asList(new Document("$lookup",
+        public static MongoQuery query2 = new MongoQuery("Embedded 2", Arrays.asList(new Document("$lookup",
                         new Document("as", "booking")
                                 .append("from", "booking")
                                 .append("foreignField", "passenger.passportNumber")
@@ -65,7 +65,7 @@ public class BenchmarkTest {
                                 .append("first_name", "$firstName"))),
                 "passenger"
         );
-        public static MongoQuery query3 = new MongoQuery("3", List.of(
+        public static MongoQuery query3 = new MongoQuery("Embedded 3", List.of(
                 Aggregates.match(eq("flight._id", "FL0805")),
                 Aggregates.project(
                         Projections.fields(
@@ -78,7 +78,7 @@ public class BenchmarkTest {
                         )
                 )
         ), "booking");
-        public static MongoQuery query4 = new MongoQuery("4", Arrays.asList(new Document("$match",
+        public static MongoQuery query4 = new MongoQuery("Embedded 4", Arrays.asList(new Document("$match",
                         new Document("airportTo._id", "890")),
                 new Document("$project",
                         new Document("_id", 0L)
@@ -89,6 +89,76 @@ public class BenchmarkTest {
                                 .append("arrival_time_actual", "$arrivalTimeActual")),
                 new Document("$sort",
                         new Document("arrival_time_scheduled", 1L))), "flight");
+    }
+    public static class MongoReferences {
+        public static MongoQuery query1 = new MongoQuery("Reference 1", Arrays.asList(new Document("$lookup",
+                        new Document("from", "airport")
+                                .append("localField", "airportFrom.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "airportTo_result")),
+                new Document("$lookup",
+                        new Document("from", "aircraft")
+                                .append("localField", "aircraft.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "aircraft_result")),
+                new Document("$unwind",
+                        new Document("path", "$airportTo_result")),
+                new Document("$unwind",
+                        new Document("path", "$aircraft_result")),
+                new Document("$lookup",
+                        new Document("from", "airline")
+                                .append("localField", "aircraft_result.airline.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "airline")),
+                new Document("$unwind",
+                        new Document("path", "$airline")),
+                new Document("$project",
+                        new Document("departureTimeScheduled", 1L)
+                                .append("gate", 1L)
+                                .append("city", "$airportTo_result.city")
+                                .append("aiportTo", "$airportTo_result._id")
+                                .append("airline", "$airline.name"))),
+                "flight"
+        );
+
+        public static MongoQuery query2 = new MongoQuery("Reference 2", Arrays.asList(new Document("$lookup",
+                        new Document("from", "passenger")
+                                .append("localField", "passenger.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "passenger")),
+                new Document("$unwind",
+                        new Document("path", "$passenger")),
+                new Document("$project",
+                        new Document("_id", 0L)
+                                .append("passenger", "$passenger._id")
+                                .append("firstName", "$passenger.firstName")
+                                .append("lastName", "$passenger.lastName")
+                                .append("flight", "$flight.$id")
+                                .append("seat", 1L))), "booking");
+
+        public static MongoQuery query3 = new MongoQuery("Reference 3",  Arrays.asList(new Document("$match",
+                        new Document("flight.$id", "FL0930")),
+                new Document("$lookup",
+                        new Document("as", "flight")
+                                .append("from", "flight")
+                                .append("foreignField", "_id")
+                                .append("localField", "flight.$id")),
+                new Document("$lookup",
+                        new Document("as", "passenger")
+                                .append("from", "passenger")
+                                .append("foreignField", "_id")
+                                .append("localField", "passenger.$id")),
+                new Document("$unwind",
+                        new Document("path", "$flight")),
+                new Document("$unwind",
+                        new Document("path", "$passenger")),
+                new Document("$project",
+                        new Document("flight", "$flight._id")
+                                .append("firstName", "$passenger.firstName")
+                                .append("lastName", "$passenger.lastName")
+                                .append("passportNumber", "$passenger.passportNumber")
+                                .append("seat", "seat"))), "booking");
+
     }
     public static class RdbQueries {
         public static RdbQuery query1 = new RdbQuery("1", "SELECT f.number, f.departure_time_scheduled, f.gate, a_to.city, a_to.id, a_line.name FROM flight f\n" +
@@ -135,6 +205,36 @@ public class BenchmarkTest {
 
         assertNotEquals(0, result.size());
 
+    }
+
+    @Test
+    void referencesBenchmark() {
+        MongoConnection mongoConnection = new MongoConnection(new MongoConnectionCredentials("localhost", 27017, "mftest-References", null, null));
+
+        MongoQueryExecutor mqe = new MongoQueryExecutor(
+                0,
+                List.of(MongoReferences.query1, MongoReferences.query2, MongoReferences.query3, MongoEmbedded.query4),
+                30,
+                mongoConnection
+        );
+
+
+        BenchmarkStep step = new BenchmarkStep(log);
+
+        IMfBinder binder = new MfMigrator.Binder();
+
+        var executor = new MfMigrator(binder, List.of(step), log);
+
+        BenchmarkResultList result = (BenchmarkResultList) executor.execute(mqe);
+
+        var qres = new QueryResult("Query", "Elapsed time");
+        for(var x : result) {
+            qres.addRow(x.getQueryName(), x.getMilliseconds() + " ms");
+        }
+        System.out.println("Mongo References:");
+        System.out.println(qres.toString());
+
+        assertNotEquals(0, result.size());
     }
 
     @Test

@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest
 class MftestApplicationTests {
 
-    public static final String MONGO_DATABASE = "mftest-References";
+    public static final String MONGO_DATABASE = "mftest-A";
 
     private MongoConnection mongoConnection;
     private MongoDatabase db;
@@ -200,6 +200,24 @@ class MftestApplicationTests {
     }
 
     @Test
+    void aggregate1_ref() {
+        Arrays.asList(new Document("$lookup",
+                        new Document("from", "passenger")
+                                .append("localField", "passenger.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "passenger")),
+                new Document("$unwind",
+                        new Document("path", "$passenger")),
+                new Document("$project",
+                        new Document("_id", 0L)
+                                .append("passenger", "$passenger._id")
+                                .append("firstName", "$passenger.firstName")
+                                .append("lastName", "$passenger.lastName")
+                                .append("flight", "$flight.$id")
+                                .append("seat", 1L)));
+    }
+
+    @Test
     void aggregate2() {
 
         var collection = db.getCollection("booking");
@@ -281,7 +299,7 @@ class MftestApplicationTests {
                                                 .append("arrival_time_actual", "$arrivalTimeActual")),
                                 new Document("$sort",
                                         new Document("arrival_time_scheduled", 1L)))
-        );
+        ).forEach(System.out::println);
 
         var endTime = System.nanoTime();
         var elapsedTime = endTime - startTime;
