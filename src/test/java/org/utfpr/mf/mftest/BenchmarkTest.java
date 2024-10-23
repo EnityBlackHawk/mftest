@@ -18,6 +18,7 @@ import org.utfpr.mf.model.MongoQuery;
 import org.utfpr.mf.model.RdbQuery;
 import org.utfpr.mf.mongoConnection.MongoConnection;
 import org.utfpr.mf.mongoConnection.MongoConnectionCredentials;
+import org.utfpr.mf.stream.FilePrintStream;
 import org.utfpr.mf.tools.DataImporter;
 import org.utfpr.mf.tools.QueryResult;
 
@@ -34,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class BenchmarkTest {
 
-    private PrintStream log = System.out;
+    private PrintStream log = new FilePrintStream("/home/luan/java_log.txt");
 
     public BenchmarkTest() throws FileNotFoundException {
     }

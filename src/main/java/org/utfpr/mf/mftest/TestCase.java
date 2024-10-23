@@ -1,9 +1,12 @@
 package org.utfpr.mf.mftest;
 
+import kotlin.Pair;
 import lombok.*;
 import org.jetbrains.annotations.Nullable;
 import org.utfpr.mf.MockLayer;
 import org.utfpr.mf.enums.DefaultInjectParams;
+import org.utfpr.mf.mftest.model.Benchmark;
+import org.utfpr.mf.mftest.model.RdbBenchmark;
 import org.utfpr.mf.mftest.model.TestResult;
 import org.utfpr.mf.mftest.model.WorkloadData;
 import org.utfpr.mf.mftest.service.TestResultService;
@@ -13,22 +16,24 @@ import org.utfpr.mf.migration.MfMigrationStepFactory;
 import org.utfpr.mf.migration.MfMigrator;
 import org.utfpr.mf.migration.params.*;
 import org.utfpr.mf.model.Credentials;
+import org.utfpr.mf.model.MongoQuery;
 import org.utfpr.mf.mongoConnection.MongoConnection;
 import org.utfpr.mf.mongoConnection.MongoConnectionCredentials;
 import org.utfpr.mf.prompt.Framework;
 import org.utfpr.mf.stream.FilePrintStream;
 import org.utfpr.mf.stream.StringPrintStream;
 import org.utfpr.mf.tools.CodeSession;
+import org.utfpr.mf.tools.QueryResult;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.List;
 
 
 @Getter
 @Setter
-@Builder
 public class TestCase extends CodeSession {
 
     public static boolean MOCK_LAYER = false;
@@ -42,6 +47,7 @@ public class TestCase extends CodeSession {
     private TestResultService testResultService;
     private boolean success = false;
     private StringPrintStream printStream;
+    private TestResult testResult;
 
     protected TestCase(String name,
                        Credentials credentials, MigrationSpec migrationSpec,
@@ -88,10 +94,11 @@ public class TestCase extends CodeSession {
         var result = migrator.execute(credentials);
         // TODO: Treat errors were (expose the generated classes)
 
-        persist();
+        this.testResult = persist();
+
     }
 
-    private void persist() {
+    private TestResult persist() {
         BEGIN("Saving result");
         TestResult tr = new TestResult(
                 name,
@@ -104,7 +111,38 @@ public class TestCase extends CodeSession {
                 migrationSpec.getWorkload().stream().map(WorkloadData::new).toList(),
                 printStream.get()
         );
-        testResultService.save(tr);
+        return testResultService.save(tr);
+    }
+
+    public List<Benchmark> runBenchmark(List<MongoQuery> queries) {
+        MongoQueryExecutor mqe = new MongoQueryExecutor(
+                0,
+                queries,
+                30,
+                (MongoConnection) binder.get(DefaultInjectParams.MONGO_CONNECTION.getValue()));
+
+        var factory = new MfMigrationStepFactory(printStream.clean());
+        factory.createBenchmarkStep();
+
+        MfMigrator migrator = new MfMigrator(binder, factory, printStream);
+        BenchmarkResultList results = (BenchmarkResultList) migrator.execute(mqe);
+
+        ArrayList<Benchmark> ret = new ArrayList<>();
+
+        var qres = new QueryResult("Query", "Elapsed time");
+        for(var x : results) {
+            qres.addRow(x.getQueryName(), x.getMilliseconds() + " ms");
+        }
+        INFO("Result:");
+        INFO(qres.toString());
+
+        for(var x : results) {
+            ret.add(
+                    new Benchmark(null, x.getQueryName(), x.getMilliseconds(), testResult, printStream.get())
+            );
+        }
+
+        return ret;
     }
 
 
