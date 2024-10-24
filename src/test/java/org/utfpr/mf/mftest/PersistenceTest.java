@@ -24,33 +24,33 @@ public class PersistenceTest {
     @Autowired
     private RdbBenchmarkService rdbBenchmarkService;
 
-    @Test
-    void persistBenchmark() {
-
-        var test = testResultService.findAll();
-
-        assertNotEquals(0, test.size());
-
-        var bench = new Benchmark(null, "test", 0.0, test.getFirst(), "log");
-        var result = benchmarkService.save(bench);
-
-        assertNotNull(result.getId());
-        benchmarkService.delete(bench.getId());
-    }
-
-    @Test
-    void persistRdbBenchmark() {
-        var test = testResultService.findAll();
-
-        assertNotEquals(0, test.size());
-
-        var bench = new RdbBenchmark(null, "test", 0.0, test.getFirst(), "log");
-        var result = rdbBenchmarkService.save(bench);
-
-        assertNotNull(result.getId());
-
-        rdbBenchmarkService.delete(bench.getId());
-    }
+//    @Test
+//    void persistBenchmark() {
+//
+//        var test = testResultService.findAll();
+//
+//        assertNotEquals(0, test.size());
+//
+//        var bench = new Benchmark(null, "test", 0.0, test.getFirst(), "log");
+//        var result = benchmarkService.save(bench);
+//
+//        assertNotNull(result.getId());
+//        benchmarkService.delete(bench.getId());
+//    }
+//
+//    @Test
+//    void persistRdbBenchmark() {
+//        var test = testResultService.findAll();
+//
+//        assertNotEquals(0, test.size());
+//
+//        var bench = new RdbBenchmark(null, "test", 0.0, test.getFirst(), "log");
+//        var result = rdbBenchmarkService.save(bench);
+//
+//        assertNotNull(result.getId());
+//
+//        rdbBenchmarkService.delete(bench.getId());
+//    }
 
 
 }

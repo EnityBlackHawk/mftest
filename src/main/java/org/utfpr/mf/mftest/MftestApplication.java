@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.utfpr.mf.MockLayer;
 import org.utfpr.mf.enums.DefaultInjectParams;
 import org.utfpr.mf.mftest.service.BenchmarkService;
+import org.utfpr.mf.mftest.service.RdbBenchmarkService;
 import org.utfpr.mf.mftest.service.TestResultService;
 import org.utfpr.mf.interfaces.IMfBinder;
 import org.utfpr.mf.interfaces.IMfStepObserver;
@@ -18,6 +19,7 @@ import org.utfpr.mf.migration.params.MigrationSpec;
 import org.utfpr.mf.migration.params.Model;
 import org.utfpr.mf.model.Credentials;
 import org.utfpr.mf.model.MongoQuery;
+import org.utfpr.mf.model.RdbQuery;
 import org.utfpr.mf.prompt.Framework;
 import org.utfpr.mf.migration.params.MigrationSpec.Workload;
 
@@ -84,12 +86,102 @@ public class MftestApplication {
                 new Document("$sort",
                         new Document("arrival_time_scheduled", 1L))), "flight");
     }
+    public static class MongoReferences {
+        public static MongoQuery query1 = new MongoQuery("Reference 1", Arrays.asList(new Document("$lookup",
+                        new Document("from", "airport")
+                                .append("localField", "airportFrom.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "airportTo_result")),
+                new Document("$lookup",
+                        new Document("from", "aircraft")
+                                .append("localField", "aircraft.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "aircraft_result")),
+                new Document("$unwind",
+                        new Document("path", "$airportTo_result")),
+                new Document("$unwind",
+                        new Document("path", "$aircraft_result")),
+                new Document("$lookup",
+                        new Document("from", "airline")
+                                .append("localField", "aircraft_result.airline.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "airline")),
+                new Document("$unwind",
+                        new Document("path", "$airline")),
+                new Document("$project",
+                        new Document("departureTimeScheduled", 1L)
+                                .append("gate", 1L)
+                                .append("city", "$airportTo_result.city")
+                                .append("aiportTo", "$airportTo_result._id")
+                                .append("airline", "$airline.name"))),
+                "flight"
+        );
+
+        public static MongoQuery query2 = new MongoQuery("Reference 2", Arrays.asList(new Document("$lookup",
+                        new Document("from", "passenger")
+                                .append("localField", "passenger.$id")
+                                .append("foreignField", "_id")
+                                .append("as", "passenger")),
+                new Document("$unwind",
+                        new Document("path", "$passenger")),
+                new Document("$project",
+                        new Document("_id", 0L)
+                                .append("passenger", "$passenger._id")
+                                .append("firstName", "$passenger.firstName")
+                                .append("lastName", "$passenger.lastName")
+                                .append("flight", "$flight.$id")
+                                .append("seat", 1L))), "booking");
+
+        public static MongoQuery query3 = new MongoQuery("Reference 3",  Arrays.asList(new Document("$match",
+                        new Document("flight.$id", "FL0930")),
+                new Document("$lookup",
+                        new Document("as", "flight")
+                                .append("from", "flight")
+                                .append("foreignField", "_id")
+                                .append("localField", "flight.$id")),
+                new Document("$lookup",
+                        new Document("as", "passenger")
+                                .append("from", "passenger")
+                                .append("foreignField", "_id")
+                                .append("localField", "passenger.$id")),
+                new Document("$unwind",
+                        new Document("path", "$flight")),
+                new Document("$unwind",
+                        new Document("path", "$passenger")),
+                new Document("$project",
+                        new Document("flight", "$flight._id")
+                                .append("firstName", "$passenger.firstName")
+                                .append("lastName", "$passenger.lastName")
+                                .append("passportNumber", "$passenger.passportNumber")
+                                .append("seat", "seat"))), "booking");
+
+    }
+    public static class RdbQueries {
+        public static RdbQuery query1 = new RdbQuery("1", """
+                SELECT f.number, f.departure_time_scheduled, f.gate, a_to.city, a_to.id, a_line.name FROM flight f
+                    JOIN public.aircraft a on f.aircraft = a.id
+                    JOIN public.airport a_to on a_to.id = f.airport_to
+                    JOIN public.airline a_line on a.airline = a_line.id
+                    WHERE number = 'FL0018';""");
+        public static  RdbQuery query2 = new RdbQuery("2", "select p.id, p.first_name, p.last_name, b.flight, b.seat from passenger p join booking b on b.passenger = p.id;");
+        public static RdbQuery query3 = new RdbQuery("3", """
+                select f."number", p.first_name, p.last_name, p.passport_number, b.seat from flight f\s
+                join booking b on b.flight = f.number\s
+                join passenger p on b.passenger = p.id where f."number" = 'FL0805';""");
+        public static RdbQuery query4 = new RdbQuery("4", """
+                select f."number", a.name as airport_from, a.city as city_from, f.arrival_time_scheduled, f.arrival_time_actual
+                from flight f join airport a on a.id = f.airport_from
+                where f.airport_to = '890' order by f.departure_time_scheduled;""");
+    }
 
 
     public static void main(String[] args) throws FileNotFoundException {
         var context = SpringApplication.run(MftestApplication.class, args);
+
         var testResultService = context.getBean(TestResultService.class);
         var benchmarkService = context.getBean(BenchmarkService.class);
+        var rdbBenchmarkService = context.getBean(RdbBenchmarkService.class);
+
         List<String> selects = WorkloadLoader.getSelects("src/main/resources/simpleWorkload.sql");
 
         assert selects.size() == 5 : "Expected 5 selects, got " + selects.size();
@@ -107,6 +199,10 @@ public class MftestApplication {
         //tests.add(generateTest2(credentials, selects, binder, testResultService));
         for (var test : tests) {
             test.start();
+
+            var rdbResult = test.runRdbBenchmark(List.of(RdbQueries.query1, RdbQueries.query2, RdbQueries.query3, RdbQueries.query4));
+            rdbResult.forEach(rdbBenchmarkService::save);
+
             var result = test.runBenchmark(List.of(MongoEmbedded.query1, MongoEmbedded.query2, MongoEmbedded.query3, MongoEmbedded.query4));
             result.forEach(benchmarkService::save);
         }

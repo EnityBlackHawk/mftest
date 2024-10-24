@@ -25,5 +25,10 @@ public class Benchmark {
     private TestResult result;
     @Column(columnDefinition = "text")
     private String log;
+    @Column(columnDefinition = "text")
+    private String mongo_query;
+    @JoinColumn(name = "query_id")
+    @ManyToOne
+    private WorkloadData query;
 
 }

@@ -162,18 +162,21 @@ public class BenchmarkTest {
 
     }
     public static class RdbQueries {
-        public static RdbQuery query1 = new RdbQuery("1", "SELECT f.number, f.departure_time_scheduled, f.gate, a_to.city, a_to.id, a_line.name FROM flight f\n" +
-                "    JOIN public.aircraft a on f.aircraft = a.id\n" +
-                "    JOIN public.airport a_to on a_to.id = f.airport_to\n" +
-                "    JOIN public.airline a_line on a.airline = a_line.id\n" +
-                "    WHERE number = 'FL0018';");
+        public static RdbQuery query1 = new RdbQuery("1", """
+                SELECT f.number, f.departure_time_scheduled, f.gate, a_to.city, a_to.id, a_line.name FROM flight f
+                    JOIN public.aircraft a on f.aircraft = a.id
+                    JOIN public.airport a_to on a_to.id = f.airport_to
+                    JOIN public.airline a_line on a.airline = a_line.id
+                    WHERE number = 'FL0018';""");
         public static  RdbQuery query2 = new RdbQuery("2", "select p.id, p.first_name, p.last_name, b.flight, b.seat from passenger p join booking b on b.passenger = p.id;");
-        public static RdbQuery query3 = new RdbQuery("3", "select f.\"number\", p.first_name, p.last_name, p.passport_number, b.seat from flight f \n" +
-                "join booking b on b.flight = f.number \n" +
-                "join passenger p on b.passenger = p.id where f.\"number\" = 'FL0805';");
-        public static RdbQuery query4 = new RdbQuery("4", "select f.\"number\", a.name as airport_from, a.city as city_from, f.arrival_time_scheduled, f.arrival_time_actual\n" +
-                "from flight f join airport a on a.id = f.airport_from\n" +
-                "where f.airport_to = '890' order by f.departure_time_scheduled;");
+        public static RdbQuery query3 = new RdbQuery("3", """
+                select f."number", p.first_name, p.last_name, p.passport_number, b.seat from flight f\s
+                join booking b on b.flight = f.number\s
+                join passenger p on b.passenger = p.id where f."number" = 'FL0805';""");
+        public static RdbQuery query4 = new RdbQuery("4", """
+                select f."number", a.name as airport_from, a.city as city_from, f.arrival_time_scheduled, f.arrival_time_actual
+                from flight f join airport a on a.id = f.airport_from
+                where f.airport_to = '890' order by f.departure_time_scheduled;""");
     }
 
     @Test

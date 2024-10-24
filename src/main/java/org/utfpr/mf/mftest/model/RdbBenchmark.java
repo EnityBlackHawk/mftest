@@ -26,5 +26,8 @@ public class RdbBenchmark {
     private TestResult result;
     @Column(columnDefinition = "text")
     private String log;
+    @JoinColumn(name = "query_id")
+    @ManyToOne
+    private WorkloadData query;
 
 }

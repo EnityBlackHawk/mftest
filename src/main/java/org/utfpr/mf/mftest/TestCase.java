@@ -5,6 +5,7 @@ import lombok.*;
 import org.jetbrains.annotations.Nullable;
 import org.utfpr.mf.MockLayer;
 import org.utfpr.mf.enums.DefaultInjectParams;
+import org.utfpr.mf.metadata.DbMetadata;
 import org.utfpr.mf.mftest.model.Benchmark;
 import org.utfpr.mf.mftest.model.RdbBenchmark;
 import org.utfpr.mf.mftest.model.TestResult;
@@ -17,11 +18,11 @@ import org.utfpr.mf.migration.MfMigrator;
 import org.utfpr.mf.migration.params.*;
 import org.utfpr.mf.model.Credentials;
 import org.utfpr.mf.model.MongoQuery;
+import org.utfpr.mf.model.RdbQuery;
 import org.utfpr.mf.mongoConnection.MongoConnection;
 import org.utfpr.mf.mongoConnection.MongoConnectionCredentials;
 import org.utfpr.mf.prompt.Framework;
-import org.utfpr.mf.stream.FilePrintStream;
-import org.utfpr.mf.stream.StringPrintStream;
+import org.utfpr.mf.stream.*;
 import org.utfpr.mf.tools.CodeSession;
 import org.utfpr.mf.tools.QueryResult;
 
@@ -46,7 +47,7 @@ public class TestCase extends CodeSession {
     private GeneratedJavaCode generatedJavaCode;
     private TestResultService testResultService;
     private boolean success = false;
-    private StringPrintStream printStream;
+    private MfPrintStream<String> printStream;
     private TestResult testResult;
 
     protected TestCase(String name,
@@ -58,7 +59,7 @@ public class TestCase extends CodeSession {
         this.migrationSpec = migrationSpec;
         this.binder = binder;
         this.testResultService = testResultService;
-        this.printStream = new StringPrintStream();
+        this.printStream = new CombinedPrintStream(new StringPrintStream(), new SystemPrintStream());
     }
 
     public void start() throws FileNotFoundException {
@@ -134,11 +135,52 @@ public class TestCase extends CodeSession {
             qres.addRow(x.getQueryName(), x.getMilliseconds() + " ms");
         }
         INFO("Result:");
-        INFO(qres.toString());
+        _printStream.println(qres.toString());
 
-        for(var x : results) {
+        for(int i = 0; i < results.size(); i++) {
             ret.add(
-                    new Benchmark(null, x.getQueryName(), x.getMilliseconds(), testResult, printStream.get())
+                    new Benchmark(
+                            null,
+                            results.get(i).getQueryName(),
+                            results.get(i).getMilliseconds(),
+                            testResult,
+                            printStream.get(),
+                            queries.get(i).getQuery().stream().map((j) -> j.toBsonDocument().toJson()).reduce("", String::concat),
+                            testResult.getWorkload().get(i)
+                    )
+            );
+        }
+
+        return ret;
+    }
+
+    public List<RdbBenchmark> runRdbBenchmark(List<RdbQuery> queries) {
+        DbMetadata dbm = (DbMetadata) binder.get(DefaultInjectParams.DB_METADATA.getValue());
+        RdbQueryExecutor mqe = new RdbQueryExecutor(queries, 30, dbm.getConnection());
+        var factory = new MfMigrationStepFactory(printStream.clean());
+        factory.createBenchmarkStep();
+        MfMigrator migrator = new MfMigrator(binder, factory, printStream);
+        BenchmarkResultList results = (BenchmarkResultList) migrator.execute(mqe);
+
+        ArrayList<RdbBenchmark> ret = new ArrayList<>();
+
+        var qres = new QueryResult("Query", "Elapsed time");
+        for(var x : results) {
+            qres.addRow(x.getQueryName(), x.getMilliseconds() + " ms");
+        }
+        INFO("Result:");
+        _printStream.println(qres.toString());
+
+        for(int i = 0; i < results.size(); i++) {
+            ret.add(
+                    new RdbBenchmark(
+                            null,
+                            results.get(i).getQueryName(),
+                            results.get(i).getMilliseconds(),
+                            testResult,
+                            printStream.get(),
+                            testResult.getWorkload().get(i)
+                    )
             );
         }
 
