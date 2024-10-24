@@ -175,7 +175,7 @@ public class MftestApplication {
     }
 
 
-    public static void main(String[] args) throws FileNotFoundException {
+    public static void main(String[] args) throws Exception {
         var context = SpringApplication.run(MftestApplication.class, args);
 
         var testResultService = context.getBean(TestResultService.class);
@@ -195,17 +195,53 @@ public class MftestApplication {
         binder.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
 
         ArrayList<TestCase> tests = new ArrayList<>();
-        tests.add(generateTest1(credentials, selects, binder, testResultService));
-        //tests.add(generateTest2(credentials, selects, binder, testResultService));
-        for (var test : tests) {
-            test.start();
 
-            var rdbResult = test.runRdbBenchmark(List.of(RdbQueries.query1, RdbQueries.query2, RdbQueries.query3, RdbQueries.query4));
+        var th1 = new Thread(() -> {
+            var test1 = generateTest1(credentials, selects, binder, testResultService);
+
+            try {
+                test1.start();
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            var rdbResult = test1.runRdbBenchmark(List.of(RdbQueries.query1, RdbQueries.query2, RdbQueries.query3, RdbQueries.query4));
             rdbResult.forEach(rdbBenchmarkService::save);
 
-            var result = test.runBenchmark(List.of(MongoEmbedded.query1, MongoEmbedded.query2, MongoEmbedded.query3, MongoEmbedded.query4));
+            var result = test1.runBenchmark(List.of(MongoEmbedded.query1, MongoEmbedded.query2, MongoEmbedded.query3, MongoEmbedded.query4));
             result.forEach(benchmarkService::save);
+        });
+
+        var th2 = new Thread(() -> {
+
+            var test2 = generateTest2(credentials, selects, binder, testResultService);
+            try {
+                test2.start();
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            var rdbResult = test2.runRdbBenchmark(List.of(RdbQueries.query1, RdbQueries.query2, RdbQueries.query3, RdbQueries.query4));
+            rdbResult.forEach(rdbBenchmarkService::save);
+
+            var result = test2.runBenchmark(List.of(MongoReferences.query1, MongoReferences.query2, MongoReferences.query3, MongoEmbedded.query4));
+            result.forEach(benchmarkService::save);
+
+        });
+
+        if(true) {
+            th1.start();
         }
+
+        if(true) {
+            th2.start();
+        }
+        th1.join();
+        th2.join();
+
+
+
+
+
+
     }
 
     public static TestCase generateTest1(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {
@@ -216,11 +252,11 @@ public class MftestApplication {
                 .prioritize_performance(true)
                 .name("B")
                 .workload(List.of(
-                        new Workload(30, selects.get(0)),
-                        new Workload(15, selects.get(1)),
-                        new Workload(25, selects.get(2)),
-                        new Workload(10, selects.get(3)),
-                        new Workload(20, selects.get(4))
+                        new Workload(10, selects.get(0)),
+                        new Workload(10, selects.get(1)),
+                        new Workload(10, selects.get(2)),
+                        new Workload(50, selects.get(3)),
+                        new Workload(10, selects.get(4))
                 ))
                 .build();
         return new TestCase("B", cred, spec, binder, service);
