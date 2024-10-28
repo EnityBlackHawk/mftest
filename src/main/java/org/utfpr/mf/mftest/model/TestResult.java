@@ -2,6 +2,7 @@ package org.utfpr.mf.mftest.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,6 +13,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class TestResult {
 
     @Id
@@ -35,18 +37,11 @@ public class TestResult {
     private Date date;
     @Column(name = "log", columnDefinition = "text")
     private String log;
+    @Column(name = "mock", columnDefinition = "bool")
+    private boolean mock;
+    @Column(name = "prompt_data_version", columnDefinition = "INT")
+    private Integer promptDataVersion;
 
-    public TestResult(String name, String prompt, String response, String llmModel, String generatedModel, String javaCode, boolean runSuccess, List<WorkloadData> workload, String log) {
-        this.name = name;
-        this.prompt = prompt;
-        this.response = response;
-        this.llmModel = llmModel;
-        this.generatedModel = generatedModel;
-        this.javaCode = javaCode;
-        this.runSuccess = runSuccess;
-        this.workload = workload;
-        this.date = new Date();
-        this.log = log;
-    }
+
 
 }

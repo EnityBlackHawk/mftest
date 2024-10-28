@@ -30,6 +30,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -37,7 +38,7 @@ import java.util.List;
 @Setter
 public class TestCase extends CodeSession {
 
-    public static boolean MOCK_LAYER = false;
+    public static boolean MOCK_LAYER = true;
 
     private String name;
     private Credentials credentials;
@@ -101,17 +102,20 @@ public class TestCase extends CodeSession {
 
     private TestResult persist() {
         BEGIN("Saving result");
-        TestResult tr = new TestResult(
-                name,
-                (String) binder.get("prompt"),
-                (String) binder.get("llm_response"),
-                migrationSpec.getLLM(),
-                generatedModel.getModel(),
-                generatedJavaCode.getFullSourceCode(),
-                success,
-                migrationSpec.getWorkload().stream().map(WorkloadData::new).toList(),
-                printStream.get()
-        );
+        TestResult tr = TestResult.builder()
+                .name(name)
+                .prompt((String) binder.get("prompt"))
+                .response((String) binder.get("llm_response"))
+                .llmModel(migrationSpec.getLLM())
+                .generatedModel(generatedModel.getModel())
+                .javaCode(generatedJavaCode.getFullSourceCode())
+                .runSuccess(success)
+                .workload( migrationSpec.getWorkload().stream().map(WorkloadData::new).toList())
+                .log(printStream.get())
+                .date(new Date())
+                .mock(MOCK_LAYER)
+                .promptDataVersion( (Integer) binder.get(DefaultInjectParams.PROMPT_DATA_VERSION.getValue()))
+                .build();
         return testResultService.save(tr);
     }
 
@@ -201,7 +205,7 @@ public class TestCase extends CodeSession {
 
             if(!MOCK_LAYER) {
                 System.out.println("Disabling MockLayer");
-                //MockLayer.isActivated = false;
+                MockLayer.isActivated = false;
             }
             return true;
         }
@@ -236,7 +240,7 @@ public class TestCase extends CodeSession {
             public boolean OnStepStart(String s, Model o) {
                 if(!MOCK_LAYER) {
                     System.out.println("Disabling MockLayer");
-                    //MockLayer.isActivated = false;
+                    MockLayer.isActivated = false;
                 }
                 return true;
             }

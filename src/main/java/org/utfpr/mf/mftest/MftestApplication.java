@@ -7,11 +7,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.utfpr.mf.MockLayer;
 import org.utfpr.mf.enums.DefaultInjectParams;
+import org.utfpr.mf.mftest.model.TestResult;
+import org.utfpr.mf.mftest.model.TestTypeRef;
 import org.utfpr.mf.mftest.service.BenchmarkService;
 import org.utfpr.mf.mftest.service.RdbBenchmarkService;
 import org.utfpr.mf.mftest.service.TestResultService;
 import org.utfpr.mf.interfaces.IMfBinder;
 import org.utfpr.mf.interfaces.IMfStepObserver;
+import org.utfpr.mf.mftest.service.TestTypeRefService;
 import org.utfpr.mf.migration.MfMigrationStepFactory;
 import org.utfpr.mf.migration.MfMigrator;
 import org.utfpr.mf.migration.params.MetadataInfo;
@@ -22,6 +25,7 @@ import org.utfpr.mf.model.MongoQuery;
 import org.utfpr.mf.model.RdbQuery;
 import org.utfpr.mf.prompt.Framework;
 import org.utfpr.mf.migration.params.MigrationSpec.Workload;
+import org.utfpr.mf.tools.TemplatedThread;
 
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -181,6 +185,7 @@ public class MftestApplication {
         var testResultService = context.getBean(TestResultService.class);
         var benchmarkService = context.getBean(BenchmarkService.class);
         var rdbBenchmarkService = context.getBean(RdbBenchmarkService.class);
+        var testTypeService = context.getBean(TestTypeRefService.class);
 
         List<String> selects = WorkloadLoader.getSelects("src/main/resources/simpleWorkload.sql");
 
@@ -191,13 +196,16 @@ public class MftestApplication {
                 "admin",
                 "admin");
 
-        IMfBinder binder = new MfMigrator.Binder();
-        binder.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
+        IMfBinder binder1 = new MfMigrator.Binder();
+        binder1.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
+
+        IMfBinder binder2 = new MfMigrator.Binder();
+        binder2.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
 
         ArrayList<TestCase> tests = new ArrayList<>();
 
-        var th1 = new Thread(() -> {
-            var test1 = generateTest1(credentials, selects, binder, testResultService);
+        var th1 = new TemplatedThread<TestResult>(() -> {
+            var test1 = generateTest1(credentials, selects, binder1, testResultService);
 
             try {
                 test1.start();
@@ -209,11 +217,13 @@ public class MftestApplication {
 
             var result = test1.runBenchmark(List.of(MongoEmbedded.query1, MongoEmbedded.query2, MongoEmbedded.query3, MongoEmbedded.query4));
             result.forEach(benchmarkService::save);
+
+            return test1.getTestResult();
         });
 
-        var th2 = new Thread(() -> {
+        var th2 = new TemplatedThread<TestResult>(() -> {
 
-            var test2 = generateTest2(credentials, selects, binder, testResultService);
+            var test2 = generateTest2(credentials, selects, binder2, testResultService);
             try {
                 test2.start();
             } catch (FileNotFoundException e) {
@@ -224,24 +234,26 @@ public class MftestApplication {
 
             var result = test2.runBenchmark(List.of(MongoReferences.query1, MongoReferences.query2, MongoReferences.query3, MongoEmbedded.query4));
             result.forEach(benchmarkService::save);
-
+            return test2.getTestResult();
         });
 
         if(true) {
-            th1.start();
+            th1.runAsync();
         }
 
         if(true) {
-            th2.start();
+            th2.runAsync();
         }
-        th1.join();
-        th2.join();
 
+        TestResult result1 = th1.await();
+        TestResult result2 = th2.await();
 
-
-
-
-
+        testTypeService.save(
+                TestTypeRef.builder()
+                        .embedded(result1)
+                        .references(result2)
+                        .build()
+        );
     }
 
     public static TestCase generateTest1(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {
@@ -252,11 +264,11 @@ public class MftestApplication {
                 .prioritize_performance(true)
                 .name("B")
                 .workload(List.of(
-                        new Workload(10, selects.get(0)),
-                        new Workload(10, selects.get(1)),
-                        new Workload(10, selects.get(2)),
-                        new Workload(50, selects.get(3)),
-                        new Workload(10, selects.get(4))
+                        new Workload(30, selects.get(0)),
+                        new Workload(15, selects.get(1)),
+                        new Workload(25, selects.get(2)),
+                        new Workload(10, selects.get(3)),
+                        new Workload(20, selects.get(4))
                 ))
                 .build();
         return new TestCase("B", cred, spec, binder, service);
