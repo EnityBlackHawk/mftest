@@ -7,14 +7,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.utfpr.mf.MockLayer;
 import org.utfpr.mf.enums.DefaultInjectParams;
+import org.utfpr.mf.mftest.model.QueryRel;
 import org.utfpr.mf.mftest.model.TestResult;
 import org.utfpr.mf.mftest.model.TestTypeRef;
-import org.utfpr.mf.mftest.service.BenchmarkService;
-import org.utfpr.mf.mftest.service.RdbBenchmarkService;
-import org.utfpr.mf.mftest.service.TestResultService;
+import org.utfpr.mf.mftest.service.*;
 import org.utfpr.mf.interfaces.IMfBinder;
 import org.utfpr.mf.interfaces.IMfStepObserver;
-import org.utfpr.mf.mftest.service.TestTypeRefService;
 import org.utfpr.mf.migration.MfMigrationStepFactory;
 import org.utfpr.mf.migration.MfMigrator;
 import org.utfpr.mf.migration.params.MetadataInfo;
@@ -186,6 +184,7 @@ public class MftestApplication {
         var benchmarkService = context.getBean(BenchmarkService.class);
         var rdbBenchmarkService = context.getBean(RdbBenchmarkService.class);
         var testTypeService = context.getBean(TestTypeRefService.class);
+        var queryRelService = context.getBean(QueryRelService.class);
 
         List<String> selects = WorkloadLoader.getSelects("src/main/resources/simpleWorkload.sql");
 
@@ -248,12 +247,26 @@ public class MftestApplication {
         TestResult result1 = th1.await();
         TestResult result2 = th2.await();
 
+        var works1 = result1.getWorkload();
+        var works2 = result2.getWorkload();
+
         testTypeService.save(
                 TestTypeRef.builder()
                         .embedded(result1)
                         .references(result2)
                         .build()
         );
+
+        assert works1.size() == works2.size() : "Tamanho nao confere";
+
+        for(int i = 0; i < works1.size(); i++) {
+            queryRelService.save(
+                    QueryRel.builder()
+                            .embedded(works1.get(i))
+                            .reference(works2.get(i))
+                            .build()
+            );
+        }
     }
 
     public static TestCase generateTest1(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {
