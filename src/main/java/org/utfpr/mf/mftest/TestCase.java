@@ -38,7 +38,7 @@ import java.util.List;
 @Setter
 public class TestCase extends CodeSession {
 
-    public static boolean MOCK_LAYER = true;
+    public static boolean MOCK_LAYER = false;
 
     private String name;
     private Credentials credentials;
@@ -50,6 +50,8 @@ public class TestCase extends CodeSession {
     private boolean success = false;
     private MfPrintStream<String> printStream;
     private TestResult testResult;
+    private List<RdbBenchmark> rdbBenchmarks;
+    private List<Benchmark> benchmarks;
 
     protected TestCase(String name,
                        Credentials credentials, MigrationSpec migrationSpec,
@@ -155,6 +157,7 @@ public class TestCase extends CodeSession {
             );
         }
 
+        benchmarks = ret;
         return ret;
     }
 
@@ -188,6 +191,7 @@ public class TestCase extends CodeSession {
             );
         }
 
+        rdbBenchmarks = ret;
         return ret;
     }
 
@@ -322,6 +326,5 @@ public class TestCase extends CodeSession {
             return false;
         }
     }
-
 
 }
