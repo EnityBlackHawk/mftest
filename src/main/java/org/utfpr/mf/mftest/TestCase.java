@@ -4,6 +4,7 @@ import kotlin.Pair;
 import lombok.*;
 import org.jetbrains.annotations.Nullable;
 import org.utfpr.mf.MockLayer;
+import org.utfpr.mf.descriptor.MfMigratorDesc;
 import org.utfpr.mf.enums.DefaultInjectParams;
 import org.utfpr.mf.metadata.DbMetadata;
 import org.utfpr.mf.mftest.model.Benchmark;
@@ -79,6 +80,8 @@ public class TestCase extends CodeSession {
         binder.bind(DefaultInjectParams.MONGO_CONNECTION.getValue(), mongoConnection);
         BEGIN_SUB("Binding LLM key");
         binder.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
+        BEGIN_SUB("Binding the MigrationSpec");
+        binder.bind(DefaultInjectParams.MIGRATION_SPEC.getValue(), migrationSpec);
 
         BEGIN_SUB("Creating migration steps");
         ModelObserver mo = new ModelObserver(this);
@@ -87,13 +90,19 @@ public class TestCase extends CodeSession {
         MfMigrationStepFactory factory = new MfMigrationStepFactory(printStream);
         factory.createAcquireMetadataStep();
         factory.createGenerateModelStep(migrationSpec, mo);
-        factory.createGenerateJavaCodeStep(new JavaObserver(this));
-        factory.createMigrateDatabaseStep(null, new MigrationObserver(this));
+        factory.createGenerateJavaCodeStep2(new JavaObserver(this));
+        factory.createMigrateDatabaseStep2(new MigrationObserver(this));
         factory.createValidatorStep(new VerificationObserver(this));
 
-        MockLayer.isActivated = true;
+        MockLayer.isActivated = false;
 
-        MfMigrator migrator = new MfMigrator(binder, factory, printStream);
+        MfMigratorDesc dsc = new MfMigratorDesc();
+        dsc.binder = binder;
+        dsc.steps = factory.getSteps();
+        dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
+        dsc.printStream = printStream;
+
+        MfMigrator migrator = new MfMigrator(dsc);
         BEGIN("Executing");
         var result = migrator.execute(credentials);
         // TODO: Treat errors were (expose the generated classes)
@@ -109,7 +118,7 @@ public class TestCase extends CodeSession {
                 .prompt((String) binder.get("prompt"))
                 .response((String) binder.get("llm_response"))
                 .llmModel(migrationSpec.getLLM())
-                .generatedModel(generatedModel.getModel())
+                .generatedModel(generatedModel != null ? generatedModel.getModel() : null)
                 .javaCode(generatedJavaCode.getFullSourceCode())
                 .runSuccess(success)
                 .workload( migrationSpec.getWorkload().stream().map(WorkloadData::new).toList())
@@ -131,7 +140,13 @@ public class TestCase extends CodeSession {
         var factory = new MfMigrationStepFactory(printStream.clean());
         factory.createBenchmarkStep();
 
-        MfMigrator migrator = new MfMigrator(binder, factory, printStream);
+        MfMigratorDesc dsc = new MfMigratorDesc();
+        dsc.binder = binder;
+        dsc.steps = factory.getSteps();
+        dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
+        dsc.printStream = printStream;
+
+        MfMigrator migrator = new MfMigrator(dsc);
         BenchmarkResultList results = (BenchmarkResultList) migrator.execute(mqe);
 
         ArrayList<Benchmark> ret = new ArrayList<>();
@@ -166,7 +181,14 @@ public class TestCase extends CodeSession {
         RdbQueryExecutor mqe = new RdbQueryExecutor(queries, 30, dbm.getConnection());
         var factory = new MfMigrationStepFactory(printStream.clean());
         factory.createBenchmarkStep();
-        MfMigrator migrator = new MfMigrator(binder, factory, printStream);
+
+        MfMigratorDesc dsc = new MfMigratorDesc();
+        dsc.binder = binder;
+        dsc.steps = factory.getSteps();
+        dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
+        dsc.printStream = printStream;
+
+        MfMigrator migrator = new MfMigrator(dsc);
         BenchmarkResultList results = (BenchmarkResultList) migrator.execute(mqe);
 
         ArrayList<RdbBenchmark> ret = new ArrayList<>();
@@ -195,7 +217,6 @@ public class TestCase extends CodeSession {
         return ret;
     }
 
-
     protected static class ModelObserver implements IMfStepObserver<MetadataInfo, Model> {
 
         private TestCase testCase;
@@ -207,18 +228,12 @@ public class TestCase extends CodeSession {
         @Override
         public boolean OnStepStart(String s, MetadataInfo o) {
 
-            if(!MOCK_LAYER) {
-                System.out.println("Disabling MockLayer");
-                MockLayer.isActivated = false;
-            }
             return true;
         }
 
         @Override
         public boolean OnStepEnd(String s, Model o) {
-            System.out.println("Enable MockLayer");
             testCase.generatedModel = o;
-            MockLayer.isActivated = true;
             return false;
         }
 
@@ -242,19 +257,12 @@ public class TestCase extends CodeSession {
 
             @Override
             public boolean OnStepStart(String s, Model o) {
-                if(!MOCK_LAYER) {
-                    System.out.println("Disabling MockLayer");
-                    MockLayer.isActivated = false;
-                }
                 return true;
             }
 
             @Override
             public boolean OnStepEnd(String s, GeneratedJavaCode o) {
-                System.out.println("Enable MockLayer");
                 testCase.generatedJavaCode = o;
-                // testCase.persist();
-                MockLayer.isActivated = true;
                 return false;
             }
 

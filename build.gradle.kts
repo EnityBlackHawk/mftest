@@ -21,9 +21,10 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.projectlombok:lombok")
+    implementation("org.xerial:sqlite-jdbc")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    implementation("org.utfpr.mf:mfcore:1.1-SNAPSHOT")
+    implementation("org.utfpr.mf:mfcore:2.0-SNAPSHOT")
 
     annotationProcessor ("org.projectlombok:lombok:1.18.34")
 

@@ -195,6 +195,7 @@ public class MftestApplication {
         assert selects.size() == 5 : "Expected 5 selects, got " + selects.size();
 
         Credentials credentials = new Credentials(
+                //"jdbc:sqlite:/home/luan/.local/share/DBeaverData/workspace6/.metadata/sample-database-sqlite-1/Chinook.db",
                 "jdbc:postgresql://localhost:5432/airport3",
                 "admin",
                 "admin");
@@ -215,11 +216,11 @@ public class MftestApplication {
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
-            var rdbResult = test1.runRdbBenchmark(List.of(RdbQueries.query1, RdbQueries.query2, RdbQueries.query3, RdbQueries.query4));
-            rdbResult.forEach(rdbBenchmarkService::save);
-
-            var result = test1.runBenchmark(List.of(MongoEmbedded.query1, MongoEmbedded.query2, MongoEmbedded.query3, MongoEmbedded.query4));
-            result.forEach(benchmarkService::save);
+//            var rdbResult = test1.runRdbBenchmark(List.of(RdbQueries.query1, RdbQueries.query2, RdbQueries.query3, RdbQueries.query4));
+//            rdbResult.forEach(rdbBenchmarkService::save);
+//
+//            var result = test1.runBenchmark(List.of(MongoEmbedded.query1, MongoEmbedded.query2, MongoEmbedded.query3, MongoEmbedded.query4));
+//            result.forEach(benchmarkService::save);
 
             return test1;
         });
@@ -244,41 +245,41 @@ public class MftestApplication {
             th1.runAsync();
         }
 
-        if(true) {
+        if(false) {
             th2.runAsync();
         }
 
         TestCase case1 = th1.await();
-        TestCase case2 = th2.await();
+        //TestCase case2 = th2.await();
 
         TestResult result1 = case1.getTestResult();
-        TestResult result2 = case2.getTestResult();
+        //TestResult result2 = case2.getTestResult();
 
         var works1 = result1.getWorkload();
-        var works2 = result2.getWorkload();
+        //var works2 = result2.getWorkload();
 
-        testTypeService.save(
-                TestTypeRef.builder()
-                        .embedded(result1)
-                        .references(result2)
-                        .build()
-        );
-
-        assert works1.size() == works2.size() : "Tamanho nao confere";
-
-        for(int i = 0; i < works1.size(); i++) {
-            queryRelService.save(
-                    QueryRel.builder()
-                            .embedded(works1.get(i))
-                            .reference(works2.get(i))
-                            .build()
-            );
-        }
-
-        MarkdownContent content = getMarkdownContent(case1, case2);
-
-        MarkdownDocument doc = new MarkdownDocument("/home/luan/bench_docs/Result-" + new Date().getTime() + ".md");
-        doc.write(content);
+//        testTypeService.save(
+//                TestTypeRef.builder()
+//                        .embedded(result1)
+//                        .references(result2)
+//                        .build()
+//        );
+//
+//        assert works1.size() == works2.size() : "Tamanho nao confere";
+//
+//        for(int i = 0; i < works1.size(); i++) {
+//            queryRelService.save(
+//                    QueryRel.builder()
+//                            .embedded(works1.get(i))
+//                            .reference(works2.get(i))
+//                            .build()
+//            );
+//        }
+//
+//        MarkdownContent content = getMarkdownContent(case1, case2);
+//
+//        MarkdownDocument doc = new MarkdownDocument("/home/luan/bench_docs/Result-" + new Date().getTime() + ".md");
+//        doc.write(content);
     }
 
     @NotNull
@@ -314,16 +315,13 @@ public class MftestApplication {
                 .framework(Framework.SPRING_DATA)
                 .allow_ref(true)
                 .prioritize_performance(true)
-                .name("B")
+                .name("SQLite")
                 .workload(List.of(
-                        new Workload(30, selects.get(0)),
-                        new Workload(15, selects.get(1)),
-                        new Workload(25, selects.get(2)),
-                        new Workload(10, selects.get(3)),
-                        new Workload(20, selects.get(4))
+                        new Workload(30, "SELECT * FROM Album"),
+                        new Workload(15, "SELECT * FROM Customer")
                 ))
                 .build();
-        return new TestCase("B", cred, spec, binder, service);
+        return new TestCase("SQLite-2", cred, spec, binder, service);
     }
 
     public static TestCase generateTest2(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {
@@ -332,7 +330,7 @@ public class MftestApplication {
                 .framework(Framework.SPRING_DATA)
                 .allow_ref(true)
                 .prioritize_performance(false)
-                .name("References")
+                .name("SQLite-References")
                 .workload(List.of(
                         new Workload(30, selects.get(0)),
                         new Workload(15, selects.get(1)),

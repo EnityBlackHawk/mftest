@@ -1,5 +1,6 @@
 package org.utfpr.mf.mftest.model;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,6 +29,7 @@ public class TestResult {
     @Column(name = "llm_model")
     private String llmModel;
     @Column(name = "generated_model", columnDefinition = "text")
+    @Nullable
     private String generatedModel;
     @Column(columnDefinition = "text")
     private String javaCode;
