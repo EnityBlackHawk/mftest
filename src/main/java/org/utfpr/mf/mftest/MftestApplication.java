@@ -195,8 +195,8 @@ public class MftestApplication {
         assert selects.size() == 5 : "Expected 5 selects, got " + selects.size();
 
         Credentials credentials = new Credentials(
-                //"jdbc:sqlite:/home/luan/.local/share/DBeaverData/workspace6/.metadata/sample-database-sqlite-1/Chinook.db",
-                "jdbc:postgresql://localhost:5432/airport3",
+                "jdbc:sqlite:/home/luan/.local/share/DBeaverData/workspace6/.metadata/sample-database-sqlite-1/Chinook.db",
+                //"jdbc:postgresql://localhost:5432/airport3",
                 "admin",
                 "admin");
 
@@ -321,7 +321,7 @@ public class MftestApplication {
                         new Workload(15, "SELECT * FROM Customer")
                 ))
                 .build();
-        return new TestCase("SQLite-2", cred, spec, binder, service);
+        return new TestCase("SQLite-4", cred, spec, binder, service);
     }
 
     public static TestCase generateTest2(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {

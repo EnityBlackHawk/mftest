@@ -30,6 +30,9 @@ dependencies {
 
     testCompileOnly ("org.projectlombok:lombok:1.18.34")
     testAnnotationProcessor ("org.projectlombok:lombok:1.18.34")
+
+    implementation("org.jboss.logging:jboss-logging:3.6.1.Final")
+
 }
 
 tasks.withType<Test> {

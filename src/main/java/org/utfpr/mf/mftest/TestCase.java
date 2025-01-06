@@ -89,10 +89,10 @@ public class TestCase extends CodeSession {
 
         MfMigrationStepFactory factory = new MfMigrationStepFactory(printStream);
         factory.createAcquireMetadataStep();
-        factory.createGenerateModelStep(migrationSpec, mo);
+        factory.createGenerateModelStep2(mo);
         factory.createGenerateJavaCodeStep2(new JavaObserver(this));
         factory.createMigrateDatabaseStep2(new MigrationObserver(this));
-        factory.createValidatorStep(new VerificationObserver(this));
+        //factory.createValidatorStep(new VerificationObserver(this));
 
         MockLayer.isActivated = false;
 
@@ -101,6 +101,7 @@ public class TestCase extends CodeSession {
         dsc.steps = factory.getSteps();
         dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
         dsc.printStream = printStream;
+        dsc.llmServiceDesc.cacheDir = "/home/luan/mf_cache";
 
         MfMigrator migrator = new MfMigrator(dsc);
         BEGIN("Executing");
@@ -144,6 +145,7 @@ public class TestCase extends CodeSession {
         dsc.binder = binder;
         dsc.steps = factory.getSteps();
         dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
+        dsc.llmServiceDesc.cacheDir = "~/mf_cache";
         dsc.printStream = printStream;
 
         MfMigrator migrator = new MfMigrator(dsc);
