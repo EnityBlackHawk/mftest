@@ -87,12 +87,11 @@ public class TestCase extends CodeSession {
         ModelObserver mo = new ModelObserver(this);
 
 
-        MfMigrationStepFactory factory = new MfMigrationStepFactory(printStream);
+        MfMigrationStepFactory factory = new MfMigrationStepFactory(MfMigrationStepFactory.CURRENT_VERSION, printStream);
         factory.createAcquireMetadataStep();
-        factory.createGenerateModelStep2(mo);
-        factory.createGenerateJavaCodeStep2(new JavaObserver(this));
-        factory.createMigrateDatabaseStep2(new MigrationObserver(this));
-        //factory.createValidatorStep(new VerificationObserver(this));
+        factory.createGenerateModelStep(mo);
+        factory.createGenerateJavaCodeStep(new JavaObserver(this));
+        factory.createMigrateDatabaseStep(new MigrationObserver(this));
 
         MockLayer.isActivated = false;
 
