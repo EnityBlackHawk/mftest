@@ -4,6 +4,7 @@ import kotlin.Pair;
 import lombok.*;
 import org.jetbrains.annotations.Nullable;
 import org.utfpr.mf.MockLayer;
+import org.utfpr.mf.descriptor.CachePolicy;
 import org.utfpr.mf.descriptor.MfMigratorDesc;
 import org.utfpr.mf.enums.DefaultInjectParams;
 import org.utfpr.mf.metadata.DbMetadata;
@@ -90,6 +91,7 @@ public class TestCase extends CodeSession {
         MfMigrationStepFactory factory = new MfMigrationStepFactory(MfMigrationStepFactory.CURRENT_VERSION, printStream);
         factory.createAcquireMetadataStep();
         factory.createGenerateModelStep(mo);
+        factory.createScorusStep();
         factory.createGenerateJavaCodeStep(new JavaObserver(this));
         factory.createMigrateDatabaseStep(new MigrationObserver(this));
 
@@ -101,6 +103,7 @@ public class TestCase extends CodeSession {
         dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
         dsc.printStream = printStream;
         dsc.llmServiceDesc.cacheDir = "/home/luan/mf_cache";
+        dsc.llmServiceDesc.temp = 0.5;
 
         MfMigrator migrator = new MfMigrator(dsc);
         BEGIN("Executing");
