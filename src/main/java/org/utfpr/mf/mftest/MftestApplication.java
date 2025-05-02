@@ -56,7 +56,7 @@ public class MftestApplication {
 
         Credentials credentials = new Credentials(
                 //"jdbc:sqlite:/home/luan/.local/share/DBeaverData/workspace6/.metadata/sample-database-sqlite-1/Chinook.db",
-                "jdbc:postgresql://localhost:5432/airport3",
+                "jdbc:postgresql://localhost:5432/ticketdb",
                 "admin",
                 "admin");
 
@@ -107,14 +107,55 @@ public class MftestApplication {
     }
 
     public static TestCase generateTest1(Credentials cred, List<String> selects, IMfBinder binder, TestResultService service) {
+        String name = String.valueOf(new Date().toInstant().getNano());
         MigrationSpec spec = MigrationSpec.builder()
-                .LLM("gpt-4o-mini")
+                .LLM("gpt-o1-mini")
                 .framework(Framework.SPRING_DATA)
                 .allow_ref(true)
-                .prioritize_performance(true)
-                .name("JAVA4")
-                .workload(List.of())
+                .prioritize_performance(false)
+                .reference_only(true)
+                .name(name)
+                .workload(List.of(
+                        new Workload(25, "SELECT e.eventname, e.starttime, v.venuecity, v.venuestate\n" +
+                                "FROM event e\n" +
+                                "JOIN venue v ON e.venueid = v.venueid\n" +
+                                "WHERE e.starttime > '2005-01-01 00:00'\n" +
+                                "  AND v.venuecity = 'San Francisco';"),
+                        new Workload(15, "SELECT ec.catname, e.eventname, e.starttime\n" +
+                                "FROM event e\n" +
+                                "JOIN eventcategory ec ON e.catid = ec.catid\n" +
+                                "WHERE ec.catname = 'Musicals';"),
+                        new Workload(35, "SELECT l.listid, u.username, l.numtickets, l.priceperticket, l.listtime\n" +
+                                "FROM listing l\n" +
+                                "JOIN users u ON l.sellerid = u.userid\n" +
+                                "WHERE l.eventid = 123\n" +
+                                "ORDER BY l.priceperticket ASC;"),
+                        new Workload(20, "SELECT d.month, d.year, SUM(s.qtysold) AS total_tickets, SUM(s.pricepaid) AS revenue\n" +
+                                "FROM sales s\n" +
+                                "JOIN date d ON s.dateid = d.dateid\n" +
+                                "GROUP BY d.month, d.year\n" +
+                                "ORDER BY d.year DESC, d.month DESC;"),
+                        new Workload(15, "SELECT DISTINCT e.eventname, e.starttime, ec.catname\n" +
+                                "FROM users u\n" +
+                                "JOIN listing l ON u.userid = l.sellerid\n" +
+                                "JOIN event e ON l.eventid = e.eventid\n" +
+                                "JOIN eventcategory ec ON e.catid = ec.catid\n" +
+                                "WHERE u.userid = 395\n" +
+                                "  AND (\n" +
+                                "    (u.likesports = true AND ec.catgroup = 'Sports') OR\n" +
+                                "    (u.likeconcerts = true AND ec.catgroup = 'Concerts') OR\n" +
+                                "    (u.liketheater = true AND ec.catgroup = 'Shows')\n" +
+                                "  )\n" +
+                                "  AND e.starttime > '2005-01-01 00:00';"),
+                        new Workload(10, "SELECT e.eventname, SUM(s.qtysold) AS total_tickets, \n" +
+                                "       SUM(s.pricepaid) AS total_revenue,\n" +
+                                "       SUM(s.pricepaid) - SUM(s.commission) AS net_revenue\n" +
+                                "FROM sales s\n" +
+                                "JOIN event e ON s.eventid = e.eventid\n" +
+                                "GROUP BY e.eventname\n" +
+                                "ORDER BY net_revenue DESC;")
+                ))
                 .build();
-        return new TestCase("JAVA4", cred, spec, binder, service);
+        return new TestCase(name, cred, spec, binder, service);
     }
 }

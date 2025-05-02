@@ -30,6 +30,7 @@ import org.utfpr.mf.tools.QueryResult;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
@@ -83,6 +84,8 @@ public class TestCase extends CodeSession {
         binder.bind(DefaultInjectParams.LLM_KEY.getValue(), System.getenv("LLM_KEY"));
         BEGIN_SUB("Binding the MigrationSpec");
         binder.bind(DefaultInjectParams.MIGRATION_SPEC.getValue(), migrationSpec);
+        BEGIN_SUB("Binding the Report path");
+        binder.bind(DefaultInjectParams.REPORT_PATH.getValue(), "reports/" + name + ".md");
 
         BEGIN_SUB("Creating migration steps");
         ModelObserver mo = new ModelObserver(this);
@@ -91,9 +94,10 @@ public class TestCase extends CodeSession {
         MfMigrationStepFactory factory = new MfMigrationStepFactory(MfMigrationStepFactory.CURRENT_VERSION, printStream);
         factory.createAcquireMetadataStep();
         factory.createGenerateModelStep(mo);
-        factory.createScorusStep();
+        //factory.createScorusStep();
         factory.createGenerateJavaCodeStep(new JavaObserver(this));
         factory.createMigrateDatabaseStep(new MigrationObserver(this));
+        factory.createGenerateReportStep();
 
         MockLayer.isActivated = false;
 
@@ -101,9 +105,12 @@ public class TestCase extends CodeSession {
         dsc.binder = binder;
         dsc.steps = factory.getSteps();
         dsc.llmServiceDesc.llm_key = System.getenv("LLM_KEY");
+        dsc.llmServiceDesc.model = "o4-mini";
         dsc.printStream = printStream;
         dsc.llmServiceDesc.cacheDir = "/home/luan/mf_cache";
-        dsc.llmServiceDesc.temp = 0.5;
+        dsc.llmServiceDesc.temp = 1;
+        dsc.llmServiceDesc.logResponses = true;
+        dsc.llmServiceDesc.logRequest = true;
 
         MfMigrator migrator = new MfMigrator(dsc);
         BEGIN("Executing");
@@ -111,6 +118,15 @@ public class TestCase extends CodeSession {
         // TODO: Treat errors were (expose the generated classes)
 
         this.testResult = persist();
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder("notify-send", "Test " + name, "Finished");
+            ProcessBuilder sound = new ProcessBuilder("paplay", "/usr/share/sounds/freedesktop/stereo/complete.oga");
+            pb.start();
+            sound.start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
     }
 
